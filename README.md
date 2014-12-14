@@ -6,4 +6,4 @@ Implementing exercises for [Reinforcement Learning: An Introduction](http://webd
 
 ![Greedy, 0.1 and 0.01 epsilon greedy agents](screenshots/nbandit.png)
 
-`nbandit.py`, implementation of a greedy and epsilon greedy agent for the n-armed bandit problem.
+`nbandit.py`, implementation of a greedy and epsilon greedy agent for the n-armed bandit problem. For explanations on how it works, read the book ;)
