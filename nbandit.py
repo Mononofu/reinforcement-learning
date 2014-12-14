@@ -2,6 +2,7 @@
 import abc
 import commands
 import functools
+import math
 import random
 import time
 
@@ -74,6 +75,26 @@ class EpsilonGreedyAgent(GreedyAgent):
     return 'EpsilonGreedyAgent(epsilon=%f)' % self.epsilon
 
 
+class SoftmaxGreedyAgent(GreedyAgent):
+
+  def __init__(self, num_actions, temperature):
+    super(SoftmaxGreedyAgent, self).__init__(num_actions)
+    self.temperature = temperature
+    self.num_actions = num_actions
+
+  def act(self):
+    base = sum([math.exp(q / self.temperature) for q in self.Q])
+    r = random.random()
+    for i, q in enumerate(self.Q):
+      p = math.exp(q / self.temperature) / base
+      if r < p:
+        return i
+      r -= p
+
+  def __str__(self):
+    return 'SoftmaxGreedyAgent(temperature=%f)' % self.temperature
+
+
 class Testbed(object):
 
   def __init__(self, environment_fn, agent_fns):
@@ -89,7 +110,7 @@ class Testbed(object):
           [0 for _ in range(episode_length)] for _ in self.agent_fns]
       self.fig = plt.figure()
       ax = self.fig.add_subplot(111)
-      ax.set_ylim([0, 1.5])
+      ax.set_ylim([0, 1.6])
 
       # Create some fake agents for the labels.
       environment = self.environment_fn()
@@ -123,7 +144,9 @@ class Testbed(object):
           self.fig.savefig('episode%04d.png' % episode)
 
       if episode and episode % 100 == 0:
-        print 'Episode %d: %.2f episodes/second' % (episode, episode / (time.time() - start))
+        end_rewards = ', '.join(
+            ['%s: %0.2f' % (a, r[-1]) for a, r in zip(agents, self.rewards)])
+        print 'Episode %d: %s (%.2f e/s)' % (episode, end_rewards, episode / (time.time() - start))
 
     if save_animation:
       print 'Creating gif...'
@@ -133,9 +156,11 @@ class Testbed(object):
 
 testbed = Testbed(
     environment_fn=lambda: Bandit([random.gauss(0, 1) for _ in range(10)], 1),
-    agent_fns=[lambda n: GreedyAgent(n),
-               lambda n: EpsilonGreedyAgent(n, 0.1),
-               lambda n: EpsilonGreedyAgent(n, 0.01)])
+    agent_fns=[
+        lambda n: GreedyAgent(n),
+        lambda n: EpsilonGreedyAgent(n, 0.1),
+        lambda n: SoftmaxGreedyAgent(n, 0.2),
+    ])
 testbed.evaluate(
     num_episodes=2000, episode_length=1000, show_plot=True)
 
