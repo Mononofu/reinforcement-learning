@@ -132,8 +132,8 @@ class Testbed(object):
           agent.learn(action, reward)
 
           if show_plot or save_animation:
-            self.rewards[i][
-                step] += (1.0 / (episode + 1)) * (reward - self.rewards[i][step])
+            self.rewards[i][step] += ((1.0 / (episode + 1)) *
+                                      (reward - self.rewards[i][step]))
 
       if (show_plot or save_animation) and episode % 20 == 0:
         for line, rewards in zip(self.lines, self.rewards):
@@ -146,12 +146,14 @@ class Testbed(object):
       if episode and episode % 100 == 0:
         end_rewards = ', '.join(
             ['%s: %0.2f' % (a, r[-1]) for a, r in zip(agents, self.rewards)])
-        print 'Episode %d: %s (%.2f e/s)' % (episode, end_rewards, episode / (time.time() - start))
+        eps = episode / (time.time() - start)
+        print 'Episode %d: %s (%.2f e/s)' % (episode, end_rewards, eps)
 
     if save_animation:
       print 'Creating gif...'
       commands.getoutput(
-          'convert -delay 10 -loop 0 -colors 15 -quality 50% -resize 50% episode*.png training.gif')
+          'convert -delay 10 -loop 0 -colors 15 -quality 50% -resize 50% '
+          'episode*.png training.gif')
       commands.getoutput('rm episode*.png')
 
 testbed = Testbed(
