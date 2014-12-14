@@ -1,5 +1,6 @@
 #!/usr/bin/python2
 import abc
+import commands
 import functools
 import random
 import time
@@ -79,8 +80,9 @@ class Testbed(object):
     self.environment_fn = environment_fn
     self.agent_fns = agent_fns
 
-  def evaluate(self, num_episodes, episode_length, plot=False):
-    if plot:
+  def evaluate(self, num_episodes, episode_length, show_plot=False,
+               save_animation=False):
+    if show_plot or save_animation:
       plt.ion()
       x = range(episode_length)
       self.rewards = [
@@ -108,25 +110,34 @@ class Testbed(object):
           reward = environment.act(action)
           agent.learn(action, reward)
 
-          if plot:
+          if show_plot or save_animation:
             self.rewards[i][
                 step] += (1.0 / (episode + 1)) * (reward - self.rewards[i][step])
 
-      if plot and episode % 20 == 0:
+      if (show_plot or save_animation) and episode % 20 == 0:
         for line, rewards in zip(self.lines, self.rewards):
           line.set_ydata(rewards)
         self.fig.canvas.draw()
 
+        if save_animation:
+          self.fig.savefig('episode%04d.png' % episode)
+
       if episode and episode % 100 == 0:
         print 'Episode %d: %.2f episodes/second' % (episode, episode / (time.time() - start))
 
+    if save_animation:
+      print 'Creating gif...'
+      commands.getoutput(
+          'convert -delay 10 -loop 0 -colors 15 -quality 50% -resize 50% episode*.png training.gif')
+      commands.getoutput('rm episode*.png')
 
 testbed = Testbed(
     environment_fn=lambda: Bandit([random.gauss(0, 1) for _ in range(10)], 1),
     agent_fns=[lambda n: GreedyAgent(n),
                lambda n: EpsilonGreedyAgent(n, 0.1),
                lambda n: EpsilonGreedyAgent(n, 0.01)])
-testbed.evaluate(num_episodes=2000, episode_length=1000, plot=True)
+testbed.evaluate(
+    num_episodes=2000, episode_length=1000, show_plot=True)
 
 print 'Done, press enter to exit.'
 raw_input()
