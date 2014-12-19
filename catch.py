@@ -120,8 +120,6 @@ for repetition in range(num_repetitions):
     catch.reset()
 
     while not terminal:
-      # for row in catch.observe():
-      #   print ''.join(row)
       observation = catch.observe()
       action = agent.act(observation)
       reward, terminal = catch.act(action)
