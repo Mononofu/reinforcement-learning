@@ -44,7 +44,7 @@ end
 
 -- observations
 function Catch:observe()
-  return {self.ballPosition[1], self.ballPosition[2], self.batPosition}
+  return torch.Tensor({self.ballPosition[1], self.ballPosition[2], self.batPosition})
 end
 
 -- reward, isTerminal
@@ -75,7 +75,7 @@ function QLearner.create(availableActions, learningRate, discountFactor)
 end
 
 function observationToString(observation)
-  return table.concat(observation, "")
+  return observation:__tostring()
 end
 
 function QLearner:act(observation)
@@ -97,36 +97,127 @@ function QLearner:learn(observationRaw, action, newObservationRaw, reward)
     (reward + self.discountFactor * max_q - self.Q[observation][action]))
 end
 
+local NNLearner = {}
+NNLearner.__index = NNLearner
+
+function NNLearner.create(availableActions, learningRate, discountFactor)
+  local learner = {}
+  setmetatable(learner, NNLearner)
+  learner.availableActions = availableActions
+  learner.learningRate = learningRate
+  learner.discountFactor = discountFactor
+
+  learner.mlp = nn.Sequential();  -- make a multi-layer perceptron
+  local inputs = 3 + #availableActions; local outputs = 1; local HUs = 20; -- parameters
+  learner.mlp:add(nn.Linear(inputs, HUs))
+  learner.mlp:add(nn.Tanh())
+  learner.mlp:add(nn.Linear(HUs, outputs))
+  return learner
+end
+
+function onehot(n, i)
+  local xs = torch.zeros(n)
+  xs[i] = 1
+  return xs
+end
+
+function NNLearner:q(observation, action_index)
+  return self.mlp:forward(torch.cat(observation,
+                                    onehot(#self.availableActions, action_index)))
+end
+
+function NNLearner:act(observation)
+  local max_q = - math.huge
+  local action_index = -1
+  for i, a in pairs(self.availableActions) do
+    local q = self:q(observation, i)[1]
+    if q > max_q then
+      max_q = q
+      action_index = i
+    end
+  end
+  return self.availableActions[action_index]
+end
+
+function NNLearner:learn(observation, action, newObservation, reward)
+  local max_q = - math.huge
+  local action_index = -1
+  for i, a in pairs(self.availableActions) do
+    local q = self:q(newObservation, i)[1]
+    if q > max_q then
+      max_q = q
+    end
+    if a == action then
+      action_index = i
+    end
+  end
+
+  local target = reward + self.discountFactor * max_q - self:q(observation, action_index)[1]
+  local criterion = nn.MSECriterion()
+
+  local input = torch.cat(observation, onehot(#self.availableActions, action_index))
+  -- feed it to the neural network and the criterion
+  criterion:forward(self:q(observation, action_index),
+                    torch.Tensor({target}))
+
+  -- train over this example in 3 steps
+  -- (1) zero the accumulation of the gradients
+  self.mlp:zeroGradParameters()
+  -- (2) accumulate gradients
+  self.mlp:backward(input,
+                    criterion:backward(self.mlp.output, torch.Tensor({target})))
+  -- (3) update parameters with a 0.01 learning rate
+  self.mlp:updateParameters(self.learningRate)
+end
+
+function formatData(rewards)
+  return {
+    {
+      key = 'QLearner',
+      values = rewards[1],
+    },
+  }
+end
+
+
 local numRepetitions = 200
 local numEpisodes = 350
 local rewards = torch.zeros(numEpisodes)
+gfx.clear()
 chartWindow = gfx.chart(rewards, {chart='line'})
 
 for repetition = 1, numRepetitions do
   local catch = Catch.create(5)
-  local agent = QLearner.create(catch:availableActions(), 0.1, 0.9)
+  local agents = {
+    -- QLearner.create(catch:availableActions(), 0.1, 0.9),
+    NNLearner.create(catch:availableActions(), 0.01, 0.9),
+  }
 
-  local reward_ma = 0
-  for i = 1, numEpisodes do
-    catch:reset()
-    reward = 0.0
-    terminal = false
-    while not terminal do
-      local observation = catch:observe()
-      local action = agent:act(observation)
-      reward, terminal = catch:act(action)
-      local new_observation = catch:observe()
-      agent:learn(observation, action, new_observation, reward)
-      if terminal then
-        break
+  for agent_i = 1, #agents do
+    local agent = agents[agent_i]
+    local reward_ma = 0
+    for i = 1, numEpisodes do
+      catch:reset()
+      reward = 0.0
+      terminal = false
+      while not terminal do
+        local observation = catch:observe()
+        local action = agent:act(observation)
+        reward, terminal = catch:act(action)
+        local new_observation = catch:observe()
+        agent:learn(observation, action, new_observation, reward)
+        if terminal then
+          break
+        end
       end
-    end
 
-    reward_ma = 0.05 * reward + 0.95 * reward_ma
-    rewards[i] = rewards[i] + 1.0 / (repetition + 1) * (reward_ma - rewards[i])
+      reward_ma = 0.05 * reward + 0.95 * reward_ma
+      rewards[i] = (rewards[i] + 1.0 / (repetition + 1) *
+        (reward_ma - rewards[i]))
+    end
   end
 
-  if repetition % 5 == 0 then
+  if repetition % 100 == 0 then
     gfx.chart(rewards, {chart='line', win=chartWindow})
   end
 end
