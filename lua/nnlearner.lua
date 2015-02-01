@@ -1,4 +1,5 @@
 require 'nn'
+require 'torch'
 
 local NNLearner = {}
 NNLearner.__index = NNLearner

@@ -1,4 +1,6 @@
 require 'gnuplot'
+require 'profiler'
+require 'torch'
 
 local nnlearner = require 'nnlearner'
 local randomlearner = require 'random'
@@ -46,15 +48,15 @@ function Catch:act(action)
 end
 
 
-local numRepetitions = 10
-local numEpisodes = 20000
+local numRepetitions = 2
+local numEpisodes = 40000
 local agentDefinitions = {
-  -- {
-  --   name = 'QLearner',
-  --   factory = function(availableActions)
-  --     return qlearner.create(availableActions, 0.1, 0.9)
-  --   end,
-  -- },
+  {
+    name = 'QLearner',
+    factory = function(availableActions)
+      return qlearner.create(availableActions, 0.1, 0.9)
+    end,
+  },
   {
     name = 'NNLearner 0.01',
     factory = function(availableActions)
@@ -67,21 +69,28 @@ local agentDefinitions = {
       return nnlearner.create(availableActions, 0.05, 0.9, 0.05)
     end,
   },
-  -- {
-  --   name = 'Random',
-  --   factory = function(availableActions)
-  --     return randomlearner.create(availableActions)
-  --   end,
-  -- },
+  {
+    name = 'NNLearner 0.10',
+    factory = function(availableActions)
+      return nnlearner.create(availableActions, 0.10, 0.9, 0.05)
+    end,
+  },
+  {
+    name = 'Random',
+    factory = function(availableActions)
+      return randomlearner.create(availableActions)
+    end,
+  },
 }
 local rewards = torch.zeros(#agentDefinitions, numEpisodes)
 gnuplot.axis({0, numEpisodes, -1, 1})
+profiler.start()
 
 for repetition = 1, numRepetitions do
   local catch = Catch.create(5)
   local agents = {}
   for _, definition in pairs(agentDefinitions) do
-    table.insert(agents, definition['factory'](catch:availableActions()))
+    agents[#agents + 1] = definition.factory(catch:availableActions())
   end
 
   for agent_i = 1, #agents do
@@ -112,20 +121,22 @@ for repetition = 1, numRepetitions do
       -- end
     end
     print(agentDefinitions[agent_i].name .. ' took ' .. timer:time().real)
-  end
 
-  if repetition % 1 == 0 then
-    data = {}
-    for i = 1, #agents do
-      local reward = rewards[i]
-      table.insert(data, {
-        agentDefinitions[i]['name'],
-        torch.range(1, numEpisodes),
-        reward,
-      })
+    if repetition % 1 == 0 then
+      data = {}
+      for i = 1, #agents do
+        local reward = rewards[i]
+        table.insert(data, {
+          agentDefinitions[i]['name'],
+          torch.range(1, numEpisodes),
+          reward,
+        })
+      end
+      gnuplot.figure(0)
+      gnuplot.plot(data)
     end
-    gnuplot.figure(0)
-    gnuplot.plot(data)
+
   end
 end
 
+profiler.stop()
