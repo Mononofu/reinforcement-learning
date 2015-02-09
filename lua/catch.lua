@@ -1,5 +1,5 @@
 require 'gnuplot'
-require 'profiler'
+require 'pepperfishprofiler'
 require 'torch'
 
 local nnlearner = require 'nnlearner'
@@ -48,8 +48,8 @@ function Catch:act(action)
 end
 
 
-local numRepetitions = 2
-local numEpisodes = 40000
+local numRepetitions = 30
+local numEpisodes = 5000
 local agentDefinitions = {
   {
     name = 'QLearner',
@@ -58,33 +58,22 @@ local agentDefinitions = {
     end,
   },
   {
-    name = 'NNLearner 0.01',
-    factory = function(availableActions)
-      return nnlearner.create(availableActions, 0.01, 0.9, 0.05)
-    end,
-  },
-  {
-    name = 'NNLearner 0.05',
-    factory = function(availableActions)
-      return nnlearner.create(availableActions, 0.05, 0.9, 0.05)
-    end,
-  },
-  {
-    name = 'NNLearner 0.10',
-    factory = function(availableActions)
-      return nnlearner.create(availableActions, 0.10, 0.9, 0.05)
-    end,
-  },
-  {
     name = 'Random',
     factory = function(availableActions)
       return randomlearner.create(availableActions)
     end,
   },
+  {
+    name = 'NNLearner 20',
+    factory = function(availableActions)
+      return nnlearner.create(availableActions, {HUs=20})
+    end,
+  },
 }
 local rewards = torch.zeros(#agentDefinitions, numEpisodes)
 gnuplot.axis({0, numEpisodes, -1, 1})
-profiler.start()
+local profiler = newProfiler()
+profiler:start()
 
 for repetition = 1, numRepetitions do
   local catch = Catch.create(5)
@@ -92,6 +81,8 @@ for repetition = 1, numRepetitions do
   for _, definition in pairs(agentDefinitions) do
     agents[#agents + 1] = definition.factory(catch:availableActions())
   end
+
+  print(repetition)
 
   for agent_i = 1, #agents do
     local timer = torch.Timer()
@@ -113,14 +104,14 @@ for repetition = 1, numRepetitions do
       -- if i % 100 == 0 then
       --   print(i .. ': ' .. reward_ma)
       -- end
-      rewards[agent_i][i] = (rewards[agent_i][i] + 1.0 / (repetition + 1) *
+      rewards[agent_i][i] = (rewards[agent_i][i] + 1.0 / repetition *
         (reward_ma - rewards[agent_i][i]))
 
       -- if i % 100 == 0 and agentDefinitions[agent_i]['name'] == 'NNLearner' then
       --   agent:visualize()
       -- end
     end
-    print(agentDefinitions[agent_i].name .. ' took ' .. timer:time().real)
+    -- print(agentDefinitions[agent_i].name .. ' took ' .. timer:time().real)
 
     if repetition % 1 == 0 then
       data = {}
@@ -139,4 +130,7 @@ for repetition = 1, numRepetitions do
   end
 end
 
-profiler.stop()
+profiler:stop()
+local outfile = io.open( "profile.txt", "w+" )
+profiler:report( outfile )
+outfile:close()

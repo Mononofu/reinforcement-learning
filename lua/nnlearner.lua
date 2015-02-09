@@ -4,13 +4,13 @@ require 'torch'
 local NNLearner = {}
 NNLearner.__index = NNLearner
 
-function NNLearner.create(availableActions, learningRate, discountFactor, explorationRate)
+function NNLearner.create(availableActions, args)
   local learner = {}
   setmetatable(learner, NNLearner)
   learner.availableActions = availableActions
-  learner.learningRate = learningRate
-  learner.discountFactor = discountFactor
-  learner.explorationRate = explorationRate
+  learner.learningRate = args.learningRate or 0.2
+  learner.discountFactor = args.discountFactor or 0.9
+  learner.explorationRate = args.explorationRate or 0.05
 
   learner.screen = torch.zeros(25)
   learner.criterion = nn.MSECriterion()
@@ -19,9 +19,9 @@ function NNLearner.create(availableActions, learningRate, discountFactor, explor
   learner.mlp = nn.Sequential();  -- make a multi-layer perceptron
   local inputs = 25
   local outputs = #availableActions
-  local HUs = 20
+  local HUs = args.HUs or 20
   learner.mlp:add(nn.Linear(inputs, HUs))
-  learner.mlp:add(nn.Tanh())
+  learner.mlp:add(args.transfer or nn.ReLU())
   learner.mlp:add(nn.Linear(HUs, outputs))
   return learner
 end
@@ -31,7 +31,7 @@ function NNLearner:q(observation)
     self.screen[i] = 0
   end
   self.screen[observation[1] * 5 + observation[2] + 1] = 1
-  self.screen[20 + observation[3]] = 2
+  self.screen[21 + observation[3]] = -1
   return self.mlp:forward(self.screen)
 end
 
