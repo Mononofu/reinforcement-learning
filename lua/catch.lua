@@ -48,8 +48,8 @@ function Catch:act(action)
 end
 
 
-local numRepetitions = 30
-local numEpisodes = 5000
+local numRepetitions = 50
+local numEpisodes = 20000
 local agentDefinitions = {
   {
     name = 'QLearner',
@@ -64,9 +64,21 @@ local agentDefinitions = {
     end,
   },
   {
-    name = 'NNLearner 20',
+    name = 'NNLearner 1',
     factory = function(availableActions)
-      return nnlearner.create(availableActions, {HUs=20})
+      return nnlearner.create(availableActions, {hiddenLayers=1})
+    end,
+  },
+  {
+    name = 'NNLearner 2',
+    factory = function(availableActions)
+      return nnlearner.create(availableActions, {hiddenLayers=2})
+    end,
+  },
+  {
+    name = 'NNLearner 3',
+    factory = function(availableActions)
+      return nnlearner.create(availableActions, {hiddenLayers=3})
     end,
   },
 }
@@ -94,24 +106,19 @@ for repetition = 1, numRepetitions do
       terminal = false
       while not terminal do
         local observation = catch:observe()
-        local action = agent:act(observation)
+        local action = agent:act(observation, reward_ma)
         reward, terminal = catch:act(action)
         local new_observation = catch:observe()
         agent:learn(observation, action, new_observation, reward, terminal)
       end
 
       reward_ma = 0.01 * reward + 0.99 * reward_ma
-      -- if i % 100 == 0 then
-      --   print(i .. ': ' .. reward_ma)
-      -- end
+
+      -- iterative mean from http://www.heikohoffmann.de/htmlthesis/node134.html
       rewards[agent_i][i] = (rewards[agent_i][i] + 1.0 / repetition *
         (reward_ma - rewards[agent_i][i]))
 
-      -- if i % 100 == 0 and agentDefinitions[agent_i]['name'] == 'NNLearner' then
-      --   agent:visualize()
-      -- end
     end
-    -- print(agentDefinitions[agent_i].name .. ' took ' .. timer:time().real)
 
     if repetition % 1 == 0 then
       data = {}
@@ -121,6 +128,7 @@ for repetition = 1, numRepetitions do
           agentDefinitions[i]['name'],
           torch.range(1, numEpisodes),
           reward,
+          '-',
         })
       end
       gnuplot.figure(0)

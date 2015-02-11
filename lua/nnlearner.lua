@@ -22,6 +22,10 @@ function NNLearner.create(availableActions, args)
   local HUs = args.HUs or 20
   learner.mlp:add(nn.Linear(inputs, HUs))
   learner.mlp:add(args.transfer or nn.ReLU())
+  for i = 1, args.hiddenLayers - 1 do
+    learner.mlp:add(nn.Linear(HUs, HUs))
+    learner.mlp:add(args.transfer or nn.ReLU())
+  end
   learner.mlp:add(nn.Linear(HUs, outputs))
   return learner
 end
@@ -47,8 +51,8 @@ local function maxAction(q, availableActions)
   return max_q, action_index
 end
 
-function NNLearner:act(observation)
-  if torch.uniform() < self.explorationRate then
+function NNLearner:act(observation, rewardMa)
+  if torch.uniform() < math.min(self.explorationRate, (1 - rewardMa) / 4) then
     return self.availableActions[math.floor(
       torch.uniform(1, #self.availableActions))]
   end
