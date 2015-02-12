@@ -73,12 +73,12 @@ function NNLearner:learn(observation, action, newObservation, reward, terminal)
 
   local pred = self:q(observation)
   for i = 1, pred:size(1) do
-    self.target[i] = pred[i]
+    self.target[i] = pred[i] + self.learningRate * (q[i] - pred[i])
   end
   if terminal then
     self.target[action_index] = reward
   else
-    self.target[action_index] = reward + self.discountFactor * max_q - pred[action_index]
+    self.target[action_index] = pred[action_index] + self.learningRate * (reward + self.discountFactor * max_q - pred[action_index])
   end
 
   local err = self.criterion:forward(pred, self.target)

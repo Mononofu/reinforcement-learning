@@ -49,7 +49,7 @@ end
 
 
 local numRepetitions = 50
-local numEpisodes = 20000
+local numEpisodes = 5000
 local agentDefinitions = {
   {
     name = 'QLearner',
@@ -73,12 +73,6 @@ local agentDefinitions = {
     name = 'NNLearner 2',
     factory = function(availableActions)
       return nnlearner.create(availableActions, {hiddenLayers=2})
-    end,
-  },
-  {
-    name = 'NNLearner 3',
-    factory = function(availableActions)
-      return nnlearner.create(availableActions, {hiddenLayers=3})
     end,
   },
 }
