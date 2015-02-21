@@ -54,7 +54,7 @@ end
 function NNLearner:act(observation, rewardMa)
   if torch.uniform() < math.min(self.explorationRate, (1 - rewardMa) / 4) then
     return self.availableActions[math.floor(
-      torch.uniform(1, #self.availableActions))]
+      torch.uniform(1, #self.availableActions + 1))]
   end
   local _, action_index = maxAction(self:q(observation), self.availableActions)
   return self.availableActions[action_index]

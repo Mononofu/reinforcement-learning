@@ -17,3 +17,7 @@ function reduce(f, xs)
   end
   return acc
 end
+
+function observationToString(observation)
+  return table.concat(observation, "")
+end

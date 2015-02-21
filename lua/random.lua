@@ -13,7 +13,7 @@ end
 
 function Random:act(observation)
   return self.availableActions[math.floor(
-    torch.uniform(1, #self.availableActions))]
+    torch.uniform(1, #self.availableActions + 1))]
 end
 
 function Random:learn(observationRaw, action, newObservationRaw, reward, terminal)

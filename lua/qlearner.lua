@@ -13,10 +13,6 @@ function QLearner.create(availableActions, learningRate, discountFactor)
   return learner
 end
 
-function observationToString(observation)
-  return table.concat(observation, "")
-end
-
 function QLearner:act(observation)
   q_action = self.Q[observationToString(observation)]
   return reduce(function(a, b) return q_action[a] > q_action[b] and a or b end,
